@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>GIS PLAYGROUND</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css"
+    />
+    <link rel="stylesheet" href="src/L.Control.Sidebar.css" />
+    <link rel="stylesheet" href="src/L.Control.Sidebar.scss" />
+    <link rel="stylesheet" href="src/map.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <style>
+      #map {
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <h5>SPATIAL PLAYGROUND</h5>
+      <div class="col mb-2">
+        <div>
+          <button class="btn btn-outline-warning btn-sidebar">
+            <i class="fa-solid fa-arrows-rotate" id="refresh">
+              Refresh Kanvas</i
+            >
+          </button>
+        </div>
+        <div class="mt-2">
+          <button
+            class="col-md-12 btn btn-outline-primary btn-sidebar"
+            id="pecah"
+          >
+            <i class="fa-solid fa-hand-scissors"></i> SPLIT POLYGON
+          </button>
+          <button
+            class="col-md-12 btn btn btn-outline-primary btn-sidebar"
+            id="polygon"
+          >
+            <i class="fa-solid fa-draw-polygon"></i> GAMBAR POLYGON
+          </button>
+          <p>
+            Fitur dasar split polygon menggunakan fungsi turf.js yang
+            terinspirasi oleh diskusi pada
+            <a
+              href="https://gis.stackexchange.com/questions/344068/splitting-a-polygon-by-multiple-linestrings-leaflet-and-turf-js"
+              target="_blank"
+              >StackOverflow</a
+            >
+            oleh TomazicM dan dimodifikasi untuk memudahkan tampilan user
+            digunakan fungsi jQuery untuk triger menggambar geometri menggunakan
+            leaflet.pm
+          </p>
+          <hr class="garisPemisah" />
+          <div class="col-md-12">
+            <textarea
+              class="form-control"
+              rows="4"
+              placeholder="Nilai koordinat silahkan, klik 2 kali polygon untuk mengedit"
+              id="koordinat"
+              disabled
+            ></textarea>
+            <div class="mt-2">
+              <button
+                class="col-md-12 btn btn-outline-danger btn-sidebar"
+                id="editPoly"
+              >
+                <i class="fa-solid fa-pencil"></i> EDIT BENTUK
+              </button>
+            </div>
+          </div>
+        </div>
+        <hr class="garisPemisah" />
+        <div class="row">
+          <button class="col-md-12 btn btn-outline-dark" id="simbologi">
+            SIMBOLOGI & DIAGRAM
+          </button>
+          <div class="col-md-12 mt-2" id="opsi" style="display: none">
+            <button
+              class="col-md-12 btn btn-outline-secondary btn-block"
+              id="pembayaran"
+            >
+              Pembayaran
+            </button>
+            <div id="bayar">
+              <canvas id="chartPembayaran"></canvas>
+              <table id="bayarTabel"></table>
+            </div>
+            <button
+              class="col-md-12 btn btn-outline-secondary btn-block"
+              id="ZNT"
+              style="margin-top: 10px"
+            >
+              ZNT
+            </button>
+            <div id="tabelZNT" style="display: none">
+              <canvas id="chartZNT"></canvas>
+              <table id="zntTabel"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="map"></div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.min.js"></script>
+    <script src="https://unpkg.com/@turf/turf"></script>
+    <script
+      src="https://kit.fontawesome.com/46340a4a8d.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="src/L.Control.Sidebar.js"></script>
+    <script src="jquery-3.7.1.min.js"></script>
+    <script src="js/mecah.js"></script>
+    <script src="js/load_polygon.js"></script>
+    <script src="js/fungsi_edit.js"></script>
+    <script src="js/fungsi_diagram.js"></script>
+    <script>
+      var lyrSelect;
+      var data;
+      var lyrEdit;
+      var lyrPoly;
+      var polygons = [];
+      var newPolygons = [];
+
+      var map = L.map("map").setView(
+        [-7.546018741360802, 112.264876532236755],
+        13
+      );
+      var osmLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 19,
+        }
+      ).addTo(map);
+
+      var googleLayer = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        {
+          maxZoom: 19,
+          attribution: "Google Maps",
+        }
+      );
+
+      var baseLayers = {
+        OSM: osmLayer,
+        "Citra Satelit": googleLayer,
+      };
+      L.control.layers(baseLayers).addTo(map);
+
+      var drawnPolygons = L.featureGroup();
+      var drawnLines = L.featureGroup();
+
+      var polygonStyle = {
+        fillColor: "yellow",
+        fillOpacity: 0.4,
+        color: "red",
+        weight: 2,
+      };
+
+      var lyrEditStyle = {
+        color: "#ff7800",
+        weight: 5,
+        opacity: 0.65,
+      };
+
+      refreshPolygon();
+
+      drawnPolygons.addTo(map);
+      drawnLines.addTo(map);
+
+      var options = {
+        position: "topright",
+        drawMarker: false,
+        drawPolyline: false,
+        drawRectangle: false,
+        drawPolygon: false,
+        drawCircle: false,
+        cutPolygon: false,
+        editMode: false,
+        removalMode: false,
+      };
+
+      var sidebar = L.control.sidebar("sidebar", {
+        closeButton: true,
+        position: "left",
+      });
+
+      map.pm.addControls(options);
+      map.addControl(sidebar);
+
+      setTimeout(function () {
+        sidebar.show();
+      }, 500);
+
+      $(document).keypress(function (event) {
+        if (event.which === 32) {
+          sidebar.toggle();
+        }
+      });
+
+      $("#simbologi").click(function () {
+        $("#opsi").toggle();
+      });
+
+      $("#pembayaran").click(function () {
+        $("#bayar").toggle();
+      });
+
+      $("#ZNT").click(function () {
+        $("#tabelZNT").toggle();
+      });
+
+      $("#refresh").click(function () {
+        var lastSetView = {
+          center: map.getCenter(),
+          zoom: map.getZoom(),
+        };
+
+        map.eachLayer(function (layer) {
+          if (layer !== map) {
+            map.removeLayer(layer);
+          }
+        });
+
+        var polyStyle = {
+          fillColor: "green",
+          fillOpacity: 0.5,
+          color: "blue",
+          weight: 2,
+        };
+
+        L.geoJSON(newPolygons, {
+          style: polyStyle,
+        }).addTo(map);
+
+        if (lyrEdit) {
+          lyrEdit.addTo(map);
+          lyrEdit.setStyle({
+            fillColor: "orange",
+            fillOpacity: 0.5,
+            color: "blue",
+            weight: 1,
+          });
+        }
+
+        map.addLayer(osmLayer);
+
+        refreshPolygon();
+        map.setView(lastSetView.center, lastSetView.zoom);
+      });
+
+      $("#pecah").click(function () {
+        map.on("pm:create", function (e) {
+          if (e.layer instanceof L.Polyline) {
+            e.layer.on("contextmenu", function () {
+              map.pm.disableDraw("Line");
+            });
+          }
+        });
+      });
+
+      $("#pecah").click(function () {
+        map.pm.enableDraw("Line", {
+          snappable: true,
+          snapDistance: 20,
+        });
+        data = JSON.parse($("#koordinat").val());
+        var lyrSplit = L.geoJSON(data, {
+          style: {
+            color: "yellow",
+            weight: 2,
+            opacity: 1,
+            fillColor: "yellow",
+            fillOpacity: 0,
+          },
+        }).addTo(map);
+        polygons.push(data);
+        console.log(polygons);
+      });
+
+      $("#polygon").click(function () {
+        map.pm.enableDraw("Polygon", {
+          snappable: true,
+          snapDistance: 20,
+        });
+      });
+
+      map.on("pm:create", function (event) {
+        handleDraw(
+          event,
+          drawnPolygons,
+          drawnLines,
+          polygons,
+          polygonCut,
+          cutIdPrefix,
+          cutPolygonStyle
+        );
+      });
+
+      $("#editPoly").click(handlePolyEdit);
+    </script>
+  </body>
+</html>

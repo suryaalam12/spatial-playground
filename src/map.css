@@ -1,0 +1,25 @@
+.btn-sidebar {
+  margin-bottom: 10px;
+}
+
+.leaflet-sidebar {
+  opacity: 0, 5;
+}
+
+.leaflet-tooltip.labelBidang {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #fff;
+  font-size: 10px;
+  font-weight: lighter;
+  text-shadow: 1px 1px 1px #000, -1px 1px 1px #000, 1px -1px 1px #000,
+    -1px -1px 1px #000;
+}
+
+.garisPemisah {
+  border: none;
+  height: 3px; /* Adjust the height as needed */
+  background-color: black; /* Change the color to your preference */
+  margin: 20px 0; /* Adjust the margin as needed */
+}
